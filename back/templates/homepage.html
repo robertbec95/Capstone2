@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Homepage</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .featured-symbols {
+            display: flex;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .featured-symbol {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: calc(20% - 2px);
+            height: 20px;
+            margin: .5px;
+            padding: 10px;
+            border: 1px solid #666666;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            cursor: default;
+            background-color: #666666;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <h1></h1>
+    <h2>Trending Stocks</h2>
+    <ul class="featured-symbols">
+        {% for symbol in featured_symbols %}
+            {% if latest_quotes[symbol] %}
+                <li class="featured-symbol">{{ symbol }} (${{ latest_quotes[symbol]['05. price'] }} USD)</li>
+            {% else %}
+                <li class="featured-symbol">{{ symbol }} (Error fetching data)</li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+    <ul>
+        {% for user_id in database %}
+            {% set user_id = database[user_id] %}
+            <li><a href="{{ url_for('portfolio', user_id=user_id) }}">{{ user_id }}</a></li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

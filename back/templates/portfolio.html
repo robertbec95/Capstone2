@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio</title>
+</head>
+<body>
+    <h1>Portfolio</h1>
+    <p>User ID: {{ user_id }}</p>
+    <p>Total Portfolio Value: ${{ total_stock_value|round(2) }}</p>
+    <table>
+        <tr>
+            <th>Stock Ticker -- Value</th>
+        </tr>
+        {% for holding in holdings %}
+        <tr>
+            <td>{{ holding.symbol }}</td>
+            <td>${{ holding.stock_value }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <a href="http://localhost:3000/">Back</a>
+</body>
+</html>

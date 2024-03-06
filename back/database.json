@@ -1,0 +1,57 @@
+{
+    "user1": {
+      "symbols": [
+        "AMD",
+        "TSLA",
+        "HOOD",
+        "DIS",
+        "PEP",
+        "UBER"
+      ],
+      "weights": [2.0, 1.5, 1.0, 0.5, 0.5, 0.25]
+    },
+    "user2": {
+      "symbols": [
+        "AMZN",
+        "SHAK",
+        "NFLX",
+        "AMD",
+        "MCD",
+        "CMG"
+      ],
+      "weights": [3.0, 2.45, 1.0, 5.0, 0.5, 1.0]
+    },
+    "user3": {
+      "symbols": [
+        "DIS",
+        "SBUX",
+        "UBER",
+        "SQ",
+        "ADBE",
+        "PEP"
+      ],
+      "weights": [10.0, 15.0, 1.0, 10.0, 3.0, 2.0]
+    },
+    "user4": {
+      "symbols": [
+        "JNJ",
+        "V",
+        "MA",
+        "BAC",
+        "WMT",
+        "NVAX"
+      ],
+      "weights": [2.0, 19.0, 1.0, 10.0, 5.0, 1.0]
+    },
+    "user5": {
+      "symbols": [
+        "PG",
+        "KO",
+        "T",
+        "SBUX",
+        "NVDA",
+        "JACK"
+      ],
+      "weights": [2.5, 15.0, 10.5, 5.0, 2.5, 5]
+    }
+  }
