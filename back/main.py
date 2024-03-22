@@ -3,12 +3,32 @@ import json
 from flask import Flask, jsonify, render_template, url_for
 from flask_cors import CORS
 
+# Initialize the Flask app
 app = Flask(__name__)
 CORS(app)
 
+# Load the database contents
 with open("database.json", "r") as file:
     database = json.load(file)
 
+### Oracle database credentials
+#un = "ADMIN"
+#pw = "Capstoneproject123"
+#dsn = "(description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1521)(host=adb.eu-madrid-1.oraclecloud.com))(connect_data=(service_name=g4bbbc586754471_d9x7y23dgzbr0azz_high.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))"
+#pool = oracledb.create_pool(user=un, password=pw, dsn=dsn) # Create a connection pool to the Oracle database
+
+# Configure SQLAlchemy with the Oracle database URI and options
+#app.config['SQLALCHEMY_DATABASE_URI'] = 'oracle+oracledb://'
+#{un}:{pw}@{dsn}'
+#app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    #'creator': pool.acquire,
+   # 'poolclass': NullPool
+#}
+# Enable SQLALCHEMY to echo queries to the console
+#app.config['SQLALCHEMY_ECHO'] = True
+#db.init_app(app)
+
+# Function to get the latest quote for a given stock symbol
 def get_latest_quote(symbol):
     api_key = "OMLTKM3U67PVKJVJ"
     url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={api_key}"
@@ -26,12 +46,14 @@ def get_latest_quote(symbol):
     
     return data["Global Quote"]
 
+# Route for the homepage
 @app.route('/')
 def homepage():
     featured_symbols = ["MSFT", "AAPL", "GOOGL", "TSLA", "NVDA"]
     latest_quotes = {symbol: get_latest_quote(symbol) for symbol in featured_symbols}
     return render_template("homepage.html", featured_symbols=featured_symbols, latest_quotes=latest_quotes)
 
+# Route to get information for a specific stock
 @app.route('/stock/<symbol>')
 def stock(symbol):
     api_key = "OMLTKM3U67PVKJVJ"
@@ -48,6 +70,7 @@ def stock(symbol):
 
     return jsonify(data)
 
+# Route to get user information by user_id
 @app.route('/user/<user_id>')
 def user(user_id):
     if user_id not in database:
@@ -79,6 +102,7 @@ def user(user_id):
 
     return jsonify({"user_id": user_id, "total_stock_value": total_stock_value, "holdings": holdings})
 
+# Define the route for user portfolio pages
 @app.route('/portfolio/<user_id>')
 def portfolio(user_id):
     if user_id not in database:
