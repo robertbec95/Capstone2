@@ -1,49 +1,36 @@
-import json
 import requests
-from flask import Flask, request, jsonify, session
+import json
+from flask import Flask, jsonify, render_template, url_for
 from flask_cors import CORS
-#import custom_functions as cp # custom module
-from models import db, User, Portfolio
-import os
-from flask_sqlalchemy import SQLAlchemy
-import oracledb
-from sqlalchemy.pool import NullPool
-#from dotenv import load_dotenv # For retrieving SECRETS
-import secrets
-from werkzeug.security import generate_password_hash, check_password_hash
 
-#db = SQLAlchemy()
-
-# Load environment variables from .env file
-#load_dotenv()
-
-# Flask setup
 app = Flask(__name__)
-CORS(app, supports_credentials=True)
-app.config["SECRET_KEY"] = secrets.token_hex(16)
-#db = md.db
+CORS(app)
 
-# Database setup
-#db.init_app(app)
+with open("database.json", "r") as file:
+    database = json.load(file)
 
-# Oracle credentials
+def get_latest_quote(symbol):
+    api_key = "OMLTKM3U67PVKJVJ"
+    url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={api_key}"
+    response = requests.get(url)
 
-un = "ADMIN"
-pw = "Capstoneproject123"
-dsn = "(description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1521)(host=adb.eu-madrid-1.oraclecloud.com))(connect_data=(service_name=g4bbbc586754471_d9x7y23dgzbr0azz_high.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))"
-pool = oracledb.create_pool(user=un, password=pw, dsn=dsn)
+    if response.status_code != 200:
+        return None
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'oracle+oracledb://'
-#{un}:{pw}@{dsn}'
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'creator': pool.acquire,
-    'poolclass': NullPool
-}
-app.config['SQLALCHEMY_ECHO'] = True
-db.init_app(app)
+    data = response.json()
+    if "Global Quote" not in data:
+        return None
 
-with app.app_context():
-    db.create_all()
+    if "Error Message" in data["Global Quote"]:
+        return None
+    
+    return data["Global Quote"]
+
+@app.route('/')
+def homepage():
+    featured_symbols = ["MSFT", "AAPL", "GOOGL", "TSLA", "NVDA"]
+    latest_quotes = {symbol: get_latest_quote(symbol) for symbol in featured_symbols}
+    return render_template("homepage.html", featured_symbols=featured_symbols, latest_quotes=latest_quotes)
 
 @app.route('/stock/<symbol>')
 def stock(symbol):
@@ -61,102 +48,70 @@ def stock(symbol):
 
     return jsonify(data)
 
-@app.route("/api/portfolio")
-def get_portfolio_summary():
-    user = request.args.get("user", "testUser")
-    portfolio = {}
-    portfolio["username"] = user
-    total_port_val = 0
-    user_portfolio = db.get_portfolio(username=user)
+@app.route('/user/<user_id>')
+def user(user_id):
+    if user_id not in database:
+        return jsonify({"error": "User not found."}), 400
 
-    portfolio["portfolio"] = {}
-    for stock, num_stocks in user_portfolio.items():
-        data = cp.get_past_vals(stock, "1d")
-        try:
-            last_close = cp.get_last_close(data)
-        except:
-            print("Error in data")
-            last_close = float("nan")
+    user_data = database[user_id]
+    total_stock_value = 0
+    holdings = []
 
-        total_port_val += num_stocks * last_close
-        portfolio["portfolio"][stock] = {
-            "num_stocks": num_stocks,
-            "last_close": round(last_close, 2)
-        }
-    portfolio["total_port_val"] = round(total_port_val, 2)
-    return jsonify(portfolio)
+    for symbol, weight in zip(user_data["symbols"], user_data["weights"]):
+        api_key = "OMLTKM3U67PVKJVJ"
+        url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={api_key}"
+        response = requests.get(url)
 
-@app.route("/api/portfolio/<stock>", methods=['GET'])
-def get_stock_values(stock):
-    interval = request.args.get("interval", "daily")
-    series = cp.get_past_vals(stock, interval)
-    past_stock = {"symbol": stock}
-    try:
-        past_stock["data"] = [
-            {"time": x, "value": y}
-            for x, y in zip(series["time"], series["close"])
-        ]
-    except:
-        past_stock["data"] = []
-    return jsonify(past_stock)
+        if response.status_code != 200:
+            return "Error: Unable to fetch stock data."
 
-@app.route("/api/login", methods=['POST'])
-def login():
-    data = request.get_json()
-    username = data["username"]
-    password = data["password"]
+        stock_data = json.loads(response.text)
 
-    if md.check_credentials(username, password):
-        session["username"] = username
-        return jsonify({"status": "success"})
-    else:
-        return jsonify({"status": "error", "message": "Invalid credentials"})
+        if "Error Message" in stock_data:
+            return jsonify({"error": stock_data["Error Message"]}), 400
 
-@app.route("/api/logout")
-def logout():
-    session.pop("username", None)
-    return jsonify({"status": "success"})
+        latest_date = list(stock_data["Time Series (Daily)"].keys())[-1]
 
-@app.route("/api/register", methods=['POST'])
-def register():
-    data = request.get_json()
-    username = data["username"]
-    password = data["password"]
+        stock_value = float(stock_data["Time Series (Daily)"][latest_date]["4. close"]) * weight
+        total_stock_value += stock_value
 
-    if md.check_username_exists(username):
-        return jsonify({"status": "error", "message": "Username already exists"})
+        holdings.append({"symbol": symbol, "stock_value": stock_value})
 
-    md.register_user(username, password)
-    return jsonify({"status": "success"})
+    return jsonify({"user_id": user_id, "total_stock_value": total_stock_value, "holdings": holdings})
 
-@app.route("/api/buy", methods=['POST'])
-def buy():
-    data = request.get_json()
-    username = session["username"]
-    stock = data["stock"]
-    quantity = data["quantity"]
+@app.route('/portfolio/<user_id>')
+def portfolio(user_id):
+    if user_id not in database:
+        return jsonify({"error": "User not found."}), 400
 
-    if not md.check_stock_exists(stock):
-        return jsonify({"status": "error", "message": "Stock does not exist"})
+    user_data = database[user_id]
+    total_stock_value = 0
+    holdings = []
 
-    if not md.check_funds(username, quantity * cp.get_last_close(cp.get_past_vals(stock, "min60")["close"])):
-        return jsonify({"status": "error", "message": "Insufficient funds"})
+    for symbol, weight in zip(user_data["symbols"], user_data["weights"]):
+        api_key = "OMLTKM3U67PVKJVJ"
+        url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={api_key}"
+        response = requests.get(url)
 
-    md.buy_stock(username, stock, quantity)
-    return jsonify({"status": "success"})
+        if response.status_code != 200:
+            return "Error: Unable to fetch stock data."
 
-@app.route("/sell", methods=['POST'])
-def sell_function():
-    data = request.get_json()
-    username = session["username"]
-    stock = data["stock"]
-    quantity = data["quantity"]
+        stock_data = json.loads(response.text)
 
-    if not md.check_stock_owned(username, stock, quantity):
-        return jsonify({"status": "error    if not md.", "message": "You don't own enoughcheck_stock_owned of this stock"})
+        if "Error Message" in stock_data:
+            return jsonify({"error": stock_data["error"]["message"]}), 400
 
-    md.sell_stock(username, stock, quantity)
-    return jsonify({"status": "success"})
+        latest_date = list(stock_data["Time Series (Daily)"].keys())[-1]
 
-if __name__ == "__main__":
+        stock_value = float(stock_data["Time Series (Daily)"][latest_date]["4. close"]) * weight
+        total_stock_value += stock_value
+
+        holdings.append({"symbol": symbol, "stock_value": stock_value})
+
+    return render_template('portfolio.html', user_id=user_id, total_stock_value=total_stock_value, holdings=holdings)
+
+if __name__ == '__main__':
     app.run(debug=True)
+
+    for user_id in database:
+        print(url_for('portfolio', user_id=user_id))

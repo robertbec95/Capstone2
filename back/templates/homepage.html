@@ -48,6 +48,14 @@
             {% set user_id = database[user_id] %}
             <li><a href="{{ url_for('portfolio', user_id=user_id) }}">{{ user_id }}</a></li>
         {% endfor %}
+        <form id="add-stock-form">
+            <input type="text" id="stock-ticker" placeholder="Enter stock ticker" required>
+            <button type="submit">Add Stock</button>
+          </form>
+        <form id="add-stock-form">
+            <input type="text" id="stock-ticker" placeholder="Enter stock ticker" required>
+            <button type="submit">Remove Stock</button>
+          </form>
     </ul>
 </body>
 </html>
